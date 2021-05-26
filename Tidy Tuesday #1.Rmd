@@ -12,6 +12,8 @@ output:
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
 ```
 
+### Mario Kart 64 Tidy Tuesday Plot
+
 Load packages and the Mario Kart data from Github. 
 ```{r}
 library(readr)
@@ -72,8 +74,30 @@ differences %>%
   ggplot(aes(x=difference, y=fct_reorder(track, difference), fill = `Course Length`))+
   geom_col(color = "white") + 
   theme_minimal() + 
-  labs(title = "Comparing course records for Mario Kart 64", subtitle = "How much faster is the 1 lap record (multplied 3x) than the 3 lap course record?", y = "", caption = "Plot created by Erin Franke, data from Mario Kart World Records") + 
+  labs(title = "Comparing course records for Mario Kart 64", subtitle = "How much faster is the 1 lap record (multplied 3x) than the 3 lap course record?", y = "", caption = "Plot created by Erin Franke, data from Mario Kart World Records", x= "difference (seconds)") + 
   scale_x_continuous(expand = c(0,0))+
   scale_fill_wsj()
+```
+
+### Plot made with group in class: 
+
+**Research question: Which track is the fastest during a three lap, no shortcuts race?**
+
+Filter the data
+```{r}
+records_filtered <- records %>%
+  filter(type == "Three Lap", shortcut == "No") %>%
+  group_by(track, system_played) %>%
+  summarize(recordtime = min(time, na.rm=TRUE))
+```
+
+Create plot
+```{r}
+records_filtered %>%
+  ggplot(mapping = aes(x=recordtime, y=fct_reorder(track,recordtime), fill=system_played)) +
+  geom_col(position = "dodge") + 
+  labs(x= "Record Time", fill = "System Played", y = "", title = "Record Time by Track for Mario Kart 64", subtitle = "For three lap and no shortcut races", caption = "Plot created by Erin Franke, data from Mario Kart World Records")+
+  scale_x_continuous(expand = c(0,0))+
+  theme_minimal()
 ```
 
