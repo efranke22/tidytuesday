@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ```{r data and libraries}
@@ -16,10 +16,6 @@ library(ggridges)
 library(ggthemes)
 animal_rescues <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-29/animal_rescues.csv')
 ```
-
-**Question: show density plots of rescues overtime, maybe filter for environmental locations such as domestic garden, lanke/pond/resorvoir and river/canal, tree scrub, woodland/forest**
-geom_density_ridges
-project: scatterplot with rating and length for trails, color by kid friendly 
 
 ```{r}
 animal_rescues_filtered <- animal_rescues %>%
