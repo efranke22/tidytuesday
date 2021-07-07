@@ -1,0 +1,60 @@
+---
+title: 'Tidy Tuesday Week #27'
+author: "Erin Franke"
+date: "6/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r data and libraries}
+library(tidyverse)
+library(lubridate)
+library(ggridges)
+library(ggthemes)
+animal_rescues <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-06-29/animal_rescues.csv')
+```
+
+```{r}
+animal_rescues_filtered <- animal_rescues %>%
+  filter(property_type %in% c("Lake/pond/reservoir", 
+                              "River/canal", 
+                              "Domestic garden (vegetation not equipment)", 
+                              "Tree scrub", 
+                              "Woodland/forest - broadleaf/hardwood", 
+                              "Woodland/forest - conifers/softwood")) 
+
+animal_rescues_filtered$property_type <- ifelse(animal_rescues_filtered$property_type %in% c("Lake/pond/reservoir", "River/canal"), "body of water", 
+      ifelse(animal_rescues_filtered$property_type == "Domestic garden (vegetation not equipment)", "domestic garden vegetation", 
+      ifelse(animal_rescues_filtered$property_type == "Tree scrub", "tree",
+      ifelse(animal_rescues_filtered$property_type %in% c("Woodland/forest - broadleaf/hardwood", "Woodland/forest - conifers/softwood"), "woods", 
+      NA))))
+
+animal_rescues_filtered <- animal_rescues_filtered %>%
+  mutate(date = as.Date(dmy(substring(date_time_of_call, 1, 10)))) %>%
+  mutate(day = day(date), 
+         month = month(date))
+
+animal_rescues_filtered$month_day <- as.Date(with(animal_rescues_filtered, paste(month, day,sep="-")), "%m-%d")
+
+animal_rescues_filtered %>%
+  ggplot(aes(x=month_day, y = property_type, fill = property_type))+
+  geom_density_ridges(alpha = 0.8)+
+  scale_x_date(breaks = as.Date(c("2021-03-01", "2021-06-01", "2021-09-01", "2021-12-01")), labels = c("Mar", "June", "Sep", "Dec"))+
+  scale_fill_manual(values = c("dodgerblue3", "gold2", "tan4", "forestgreen"))+
+  labs(x= "", y="", title = "London Animal Rescues by Environmental Setting", caption = "Erin Franke | Data from London.gov")+
+  theme_minimal()+
+  theme(legend.position = "none", 
+        plot.title.position = "plot", 
+        panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank(),
+        axis.text.y = element_blank(), 
+        plot.title = element_text(family = "mono", face = "bold"))+
+  annotate(geom="text",x=as.Date("2021-09-15"), y=4.8,label="from woods", family = "mono", fontface="bold", cex = 3.3)+
+  annotate(geom="text",x=as.Date("2021-09-15"), y=3.7,label="from trees", family = "mono", fontface="bold", cex = 3.3)+
+  annotate(geom="text",x=as.Date("2021-09-10"), y=2.5,label="from home garden vegetation", family = "mono", fontface="bold", cex = 3.3)+
+  annotate(geom="text",x=as.Date("2021-09-15"), y=1.5,label="from bodies of water", family = "mono", fontface="bold", cex = 3.3)
+```
+
