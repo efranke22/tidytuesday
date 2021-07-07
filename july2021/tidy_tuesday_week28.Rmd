@@ -106,10 +106,10 @@ allied_holidays %>%
         axis.text.y = element_blank(), 
         axis.text.x = element_text(family = "mono", face = "bold"), 
         plot.caption = element_text(family = "mono"))+
-  annotate(geom="text",x=as.Date("1945-12-15"), y=3.33,label="Great Britain", family = "mono", fontface="bold", cex = 3.3)+
+  annotate(geom="text",x=as.Date("1945-12-15"), y=3.33,label="United Kingdom", family = "mono", fontface="bold", cex = 3.3)+
   annotate(geom="text",x=as.Date("1980-09-15"), y=2.1,label="Soviet Union", family = "mono", fontface="bold", cex = 3.3)+
   annotate(geom="text",x=as.Date("1945-01-10"), y=1.25,label="France", family = "mono", fontface="bold", cex = 3.3)+
-  geom_curve(aes(x = as.Date("1952-07-01"), y = 2.5, xend = as.Date("1959-06-01"), yend = 2.25),arrow = arrow(length = unit(0.03, "npc")), curvature = -0.4, color = "darkred")+
+  geom_curve(aes(x = as.Date("1952-10-01"), y = 2.5, xend = as.Date("1959-06-01"), yend = 2.25),arrow = arrow(length = unit(0.03, "npc")), curvature = -0.4, color = "darkred")+
   annotate(geom="text",x=as.Date("1944-09-15"), y=2.5,label="17 countries gain \nindependence in The Year \nof Africa, 13 from France", family = "mono", fontface="bold", cex = 3, color = "darkred")+
   annotate(geom="text",x=as.Date("1985-08-15"), y=3.55,label="Soviet Union \ncollapses, 13 \ncountries gain \nindependence", family = "mono", fontface="bold", cex = 3, color = "goldenrod3")
 ```
