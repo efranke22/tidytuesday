@@ -1,0 +1,116 @@
+---
+title: "Tidy Tuesday Week 32"
+author: "Erin Franke"
+date: "8/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(patchwork)
+athletes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-08-03/athletes.csv')
+olympics <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-27/olympics.csv')
+```
+
+Create datasets for paralympic swimming
+```{r}
+#create paralympic swimming totals 
+paralympic_total <- athletes %>%
+  filter(type == "Swimming") %>%
+  group_by(abb) %>%
+  count() %>%
+  arrange(desc(n))
+paralympic_byMedal <- athletes %>%
+  filter(type == "Swimming") %>%
+  group_by(abb, medal) %>%
+  count()
+paralympic_swimming <- paralympic_byMedal %>%
+  left_join(paralympic_total, by = "abb") %>%
+  rename(number = n.x, total_medals = n.y)
+```
+
+Create plots 
+```{r}
+plot2 <- paralympic_swimming %>%
+  filter(abb %in% c("GBR", "USA", "AUS", "ESP", "CAN")) %>%
+  ggplot(aes(x = fct_relevel(abb, levels = c("GBR", "USA", "AUS", "ESP", "CAN")), y=number, fill = medal))+
+  geom_col()+
+  theme_minimal()+
+  scale_fill_manual(values = c("#D89581", "#D4AF37", "#C0C0C0"))+
+  scale_x_discrete(expand = c(0,0)) +
+  labs(x="", y="", fill = "", title = "Medals for top 5 paralympic swimming countries")+
+  theme(legend.position = "none",
+        plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", face = "bold", size = 8),
+        panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(), 
+        axis.text = element_text(family = "mono", face = "bold", size = 8))
+
+plot1 <- athletes %>%
+  filter(type == "Swimming", medal == "Gold") %>%
+  group_by(year) %>%
+  count(abb) %>%
+  group_by(year) %>%
+  count() %>%
+  ggplot(aes(x=year, y=n))+
+  geom_line(color = "lightblue")+
+  theme_minimal()+
+  labs(x="", y="", title = "Unique countries winning a gold swimming medal")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", face = "bold", size = 8),
+        panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(), 
+        axis.text = element_text(family = "mono", face = "bold", size = 8), 
+        plot.subtitle = element_text(family = "mono", face = "bold", size = 8))
+
+circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+    r = diameter / 2
+    tt <- seq(0,2*pi,length.out = npoints)
+    xx <- center[1] + r * cos(tt)
+    yy <- center[2] + r * sin(tt)
+    return(data.frame(x = xx, y = yy))
+}
+blue <- circleFun(c(1,-1),2,npoints = 100)
+blue <- blue %>%
+  mutate(color = "blue")
+black <- circleFun(c(2,-1),2,npoints = 100)
+black <- black %>%
+  mutate(color = "black")
+red <- circleFun(c(3,-1),2, npoints = 100)
+red <- red %>%
+  mutate(color = "red")
+yellow <- circleFun(c(1.5, -2), 2, npoints = 100)
+yellow <- yellow %>%
+  mutate(color = "yellow")
+green <- circleFun(c(2.5, -2), 2, npoints = 100)
+green <- green %>%
+  mutate(color = "green")
+rings = rbind(blue, black, red, yellow, green)
+
+plot3 <- ggplot(rings,aes(x,y, color = color)) + 
+  geom_path(size = 3.5)+
+  theme_minimal()+
+  scale_color_manual(values = c("black", "#0181C7", "#06A551", "#EE334E", "#FCB130"))+
+  labs(x="", y="", title = "Paralympic Swimming!")+
+  theme(legend.position = "none", 
+        panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(), 
+        axis.text = element_blank(), 
+        plot.title = element_text(family = "mono", face = "bold", size = 16))
+```
+
+```{r}
+plot3 /
+  plot2 | plot1
+```
+
