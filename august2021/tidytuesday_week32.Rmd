@@ -37,12 +37,12 @@ Create plots
 ```{r}
 plot2 <- paralympic_swimming %>%
   filter(abb %in% c("GBR", "USA", "AUS", "ESP", "CAN")) %>%
-  ggplot(aes(x = fct_relevel(abb, levels = c("GBR", "USA", "AUS", "ESP", "CAN")), y=number, fill = medal))+
+  ggplot(aes(x = fct_relevel(abb, levels = c("GBR", "USA", "AUS", "CAN", "ESP")), y=number, fill = medal))+
   geom_col()+
   theme_minimal()+
   scale_fill_manual(values = c("#D89581", "#D4AF37", "#C0C0C0"))+
   scale_x_discrete(expand = c(0,0)) +
-  labs(x="", y="", fill = "", title = "Medals for top 5 paralympic swimming countries")+
+  labs(x="", y="", fill = "", title = "Swimming medals for top 5 countries")+
   theme(legend.position = "none",
         plot.title.position = "plot", 
         plot.title = element_text(family = "mono", face = "bold", size = 8),
@@ -61,7 +61,7 @@ plot1 <- athletes %>%
   ggplot(aes(x=year, y=n))+
   geom_line(color = "lightblue")+
   theme_minimal()+
-  labs(x="", y="", title = "Unique countries winning a gold swimming medal")+
+  labs(x="", y="", title = "Unique countries winning a gold swimming medal", caption = "Erin Franke | data courtesy of IPC")+
   theme(plot.title.position = "plot", 
         plot.title = element_text(family = "mono", face = "bold", size = 8),
         panel.grid.major.x = element_blank(), 
@@ -106,7 +106,8 @@ plot3 <- ggplot(rings,aes(x,y, color = color)) +
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(), 
         axis.text = element_blank(), 
-        plot.title = element_text(family = "mono", face = "bold", size = 16))
+        plot.title = element_text(family = "mono", face = "bold", size = 15), 
+        plot.title.position = "plot")
 ```
 
 ```{r}
