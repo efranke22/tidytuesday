@@ -62,3 +62,47 @@ anim_save("lemur_age.gif")
 ```{r}
 knitr::include_graphics("lemur_age.gif")
 ```
+
+Previously I had forgotten to group by lemur id and get their maximum age, the following code fixes that!
+```{r}
+lemur_age2 <- lemurs %>%
+  filter(!is.na(age_at_death_y), 
+         dob > "1970-01-01", 
+         dob < "1994-01-01",
+         sex %in% c("M", "F")) %>%
+  mutate(year = year(dob)) %>%
+  group_by(dlc_id) %>%
+  mutate(max_age = max(age_at_death_y)) %>%
+  distinct(dlc_id, max_age, sex, dob, year) %>%
+  ggplot(aes(x=max_age, y=sex, fill = sex)) +
+  geom_density_ridges(color = "gray60") +
+  scale_fill_manual(values = c("lightpink", "cadetblue2"))+
+  labs(x = "", y = "", 
+       title = "Lemur lifespan distribution (yrs) for <strong><span style='color:cadetblue2'>male</span></strong></b> vs. <strong><span style='color:lightpink'>female</span></strong></b> lemurs",
+       fill = "",
+       caption = "Erin Franke | data from Kaggle")+
+  scale_y_discrete(expand = c(0,0)) +
+  theme_minimal()+
+  theme(legend.position = "none",
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size =13),
+        panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_blank(), 
+        axis.text.x = element_text(family = "mono", size=10), 
+        plot.caption = element_text(family = "mono", size = 10))+
+  geom_text(x = 33, y =3.3,
+            family = "Times",  
+            aes(label = as.character(year)),  
+            size = 20, col = "grey18")+
+  annotate(geom="text", y=3.58, x=33, label = "Lemurs born in", fontface = "bold", cex=5)+
+  transition_time(as.integer(year))
+
+animate(lemur_age2, duration=20, end_pause = 20)
+anim_save("lemur_age2.gif")
+```
+
+```{r}
+knitr::include_graphics("lemur_age2.gif")
+```
