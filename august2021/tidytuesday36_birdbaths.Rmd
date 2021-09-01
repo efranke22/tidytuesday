@@ -1,0 +1,86 @@
+---
+title: "Tidy Tuesday Week 36 - Bird Baths"
+author: "Erin Franke"
+date: "8/31/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(patchwork)
+library(ggtext)
+library(png)
+bird_baths <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-08-31/bird_baths.csv')
+bird_baths <- bird_baths %>%
+  filter(!is.na(bioregions))
+bird_breakdown = readPNG("bird_breakdown.png", native=TRUE)
+```
+
+```{r}
+#find the percentage of yellow birds in urban and rural areas
+urban_rural_breakdown <- bird_baths %>%
+  mutate(yellow = case_when(str_detect(bird_type, "yellow")|str_detect(bird_type, "Yellow") ~ 1, 
+                            TRUE ~ 0)) %>%
+  group_by(urban_rural, yellow) %>%
+  summarize(n = sum(bird_count)) %>%
+  mutate(prop = n/sum(n))
+
+#breakdown of urban and rural yellow birds 
+par(mfrow=c(1,2) ) 
+slices_urban <- c(0.97816986, 0.02183014) 
+pct <- round(slices_urban/sum(slices_urban)*100)
+lbls <- c("", "")
+lbls <- paste(lbls, pct) # add percents to labels 
+lbls <- paste(lbls,"%",sep="") # ad % to labels 
+graph1 <- pie(slices_urban,lbls, col=c("white", "goldenrod"),
+   main="Urban Australia Bird Sightings")
+
+slices_rural <- c(0.92321672,0.07678328) 
+pct2 <- round(slices_rural/sum(slices_rural)*100)
+lbls2 <- c("", "")
+lbls2 <- paste(lbls2, pct2) # add percents to labels 
+lbls2 <- paste(lbls2,"%",sep="") # ad % to labels 
+graph2 <- pie(slices_rural,lbls2, col=c("white", "goldenrod"),
+   main="Rural Australia Bird Sightings")
+
+#find the top 3 bioregions where yellow birds exist, add the rural/urban pie charts
+bioregions_graph <- bird_baths %>%
+  mutate(yellow = case_when(str_detect(bird_type, "yellow")|str_detect(bird_type, "Yellow") ~ 1, 
+                            TRUE ~ 0)) %>%
+  filter(yellow >=1) %>%
+  group_by(bioregions) %>%
+  summarize(n=sum(bird_count)) %>%
+  arrange(desc(n)) %>%
+  mutate(prop_of_yellow = n/sum(n)) %>%
+  filter(prop_of_yellow > 0.10) %>%
+  ggplot(aes(x=fct_reorder(bioregions, -prop_of_yellow), y=prop_of_yellow, fill=bioregions))+
+  geom_col()+
+  scale_fill_manual(values = c("gold2", "gold2", "gold2", "gold2"))+
+  labs(x="", y="Proportion of all yellow bird sightings", title = "Yellow Australian Birds!", caption = "Erin Franke | Cleary et al, 2016")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size =13),
+        panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(), 
+        axis.text.x = element_text(family = "mono", size=8), 
+        axis.text.y = element_text(family = "mono", size=8),
+        axis.title.y = element_text(family = "mono", size=8),
+        plot.caption = element_text(family = "mono", size = 8))
+
+full_graph <- bioregions_graph + 
+   inset_element(p = bird_breakdown,
+                left = 0.5,
+                bottom = 0.6,
+                right = 0.97,
+                top = 0.99)
+ print(full_graph)
+``` 
+
+
