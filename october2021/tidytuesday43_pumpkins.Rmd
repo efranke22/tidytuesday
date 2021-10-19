@@ -1,0 +1,71 @@
+---
+title: "Tidy Tuesday Week 43 - Great Pumpkins"
+author: "Erin Franke"
+date: "10/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(splitstackshape)
+library(png)
+library(patchwork)
+pumpkin_pic = readPNG("pumpkin_pic.png", native=TRUE)
+tomato = readPNG("tomatoes.png", native=TRUE)
+gourd = readPNG("gourd.png", native=TRUE)
+watermelon = readPNG("watermelon.png", native=TRUE)
+pumpkins <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-19/pumpkins.csv') %>%
+  mutate(weight_lbs = as.numeric(weight_lbs)) %>%
+  separate(id, c('year', 'type'))
+```
+
+```{r}
+pumpkin_graph <- pumpkins %>%
+  mutate(type = recode(type, "F" = "Field Pumpkin", "P" = "Giant Pumpkin", "S" = "Giant Squash", "W" = "Giant Watermelon", "L" = "Long Gourd", "T" = "Tomato"), 
+         type = factor(type, levels = c("Tomato", "Long Gourd", "Field Pumpkin", "Giant Watermelon", "Giant Squash", "Giant Pumpkin"))) %>%
+  ggplot(aes(weight_lbs, fill = type))+
+  geom_density()+
+  facet_wrap(~type, scales="free")+
+  theme_minimal()+
+  labs(x = "", y="", title = "Weighing (lbs) the Great Pumpkin Commonwealth Fruit!", caption = "Erin Franke | Data from Great Pumpkin Commonwealth")+
+  scale_fill_manual(values = c("firebrick3", "sandybrown", "orange1", "darkgreen", "burlywood1", "orange3"))+
+  theme(legend.position = "none", 
+        panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(), 
+        plot.title.position = "plot", 
+        plot.title = element_text(family= "mono", color = "black", size=13, face = "bold"), 
+        axis.text.y = element_blank(), 
+        axis.text = element_text(family= "mono", color = "black", size=8, face = "bold"), 
+        plot.caption = element_text(family= "mono", color = "black", size=8, face = "bold"))
+
+img_graph <- pumpkin_graph +                  
+  inset_element(p = pumpkin_pic,
+                left = 0.87,
+                bottom = 0.7,
+                right = 1,
+                top = 0.88)+
+  inset_element(p = tomato,
+                left = 0.17,
+                bottom = 0.7,
+                right = 0.32,
+                top = 0.85)+
+  inset_element(p = gourd,
+                left = 0.48,
+                bottom = 0.7,
+                right = 0.7,
+                top = 0.9)+
+  inset_element(p = watermelon,
+                left = 0.21,
+                bottom = 0.2,
+                right = 0.35,
+                top = 0.35)
+
+print(img_graph)
+```
+
