@@ -1,0 +1,83 @@
+---
+title: "Tidy Tuesday Week 44 - Running"
+author: "Erin Franke"
+date: "10/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggtext)
+library(showtext)
+
+ultra_rankings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-26/ultra_rankings.csv')
+race <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-26/race.csv')
+
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+showtext_auto()
+```
+
+```{r}
+# create age variables, filter for female runners and for races where age is between 30 and 50
+ultra_rankings_f <- ultra_rankings %>%
+  left_join(race, by="race_year_id") %>%
+   mutate(race_year = year(date), 
+         years_since_race = 2021 - race_year, 
+         age_at_race = age - years_since_race, 
+         distance_miles = 0.625*distance, 
+         avg_mile = (time_in_seconds/60)/distance_miles) %>%
+  filter(gender == "W", 
+         distance > 0, 
+         age_at_race >= 30 & age_at_race <= 50) 
+
+#filter for runners with at least 10 races
+runners_10plus <- ultra_rankings_f %>%
+  group_by(runner) %>%
+  count() %>%
+  arrange(desc(n)) %>%
+  filter(n>=10) 
+
+#left join to create final data
+complete_data <- runners_10plus %>%
+  left_join(ultra_rankings_f, by = "runner")
+```
+
+```{r}
+#get slope/intercept for each runner
+slopes <-complete_data %>% 
+    group_by(runner) %>% 
+    do({
+      mod = lm(avg_mile ~ age_at_race, data = .)
+      data.frame(Intercept = coef(mod)[1],
+                 Slope = coef(mod)[2])
+    })
+
+# create graph
+complete_data %>%
+  left_join(slopes, by = "runner") %>%
+  mutate(positive_slope = as.factor(case_when(Slope >0 ~ 1, 
+                                    TRUE ~ 0))) %>%
+  ggplot(aes(x = age_at_race, y = avg_mile, group = runner)) +
+  geom_smooth(aes(color = positive_slope), method = "lm", se = FALSE, size = 0.5) +
+   theme_minimal()+
+  labs(x = "Age at race", y="Average mile (minutes)", title="Ultra Marathons: Is there evidence to support that female runners <strong><span style='color:navy'>improve</span></strong></b> throughout their 30s and 40s?", subtitle = "Lines show trends of 83 female indivual runners with at least 10 ultra marathons between age 30 and 50", caption = "Data courtesy of Benjamin Nowak of ITRA")+
+  scale_color_manual(values = c("navy", "red"))+
+  theme(plot.background = element_rect(fill = "slategray4"), 
+        plot.title.position = "plot", 
+        plot.title = element_markdown(color = "white", size = 11, family = "bell"),
+        axis.text = element_text(color = "white"), 
+        axis.title = element_markdown(color = "white", size = 10, family = "bell"), 
+        panel.grid.major = element_line(size = 0.1, linetype = 'solid',
+                                colour = "gray"), 
+        panel.grid.minor = element_blank(), 
+        legend.position = "none",
+        plot.subtitle = element_markdown(color = "white", size = 9, family = "bell"), 
+        plot.caption = element_markdown(color = "white", size = 9, family = "bell"))
+```
+
