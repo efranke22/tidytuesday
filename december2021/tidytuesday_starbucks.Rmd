@@ -1,0 +1,101 @@
+---
+title: "Tidy Tuesday Week 52"
+author: "Erin Franke"
+date: "12/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggtext)
+library(showtext)
+
+starbucks <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-12-21/starbucks.csv')
+
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+font_add_google("Kanit", "kanit", bold.wt = 600)
+showtext_auto()
+```
+
+Choose to only look at the 334 drinks in size "grande". This is the most common size in the dataset. 
+```{r}
+drinks <- starbucks %>%
+  filter(size == "grande") %>%
+  mutate(fiber_g = as.numeric(fiber_g))
+```
+
+Cluster the drinks using `total_fat_g`, `sodium_mg`, and `total_carbs_g`. On the final plot, we will plot the drinks by `calories` and `sugar_g`. 
+```{r}
+drinks_sub <- drinks %>%
+  select(total_fat_g, sodium_mg, total_carbs_g)
+
+# Run k-means for k = centers = 3
+set.seed(253)
+kclust_k3 <- kmeans(drinks_sub, centers = 3)
+kclust_k4 <- kmeans(drinks_sub, centers = 4)
+
+# Run k-means on the *scaled* data (all variables have SD = 1)
+set.seed(253)
+kclust_k3_scale <- kmeans(scale(drinks_sub), centers = 3)
+kclust_k4_scale <- kmeans(scale(drinks_sub), centers = 4)
+drinks <- drinks %>%
+    mutate(kclust_3_scale = factor(kclust_k3_scale$cluster), 
+           kclust_4_scale = factor(kclust_k4_scale$cluster))
+```
+
+Check out the within-cluster sum of squares. 3 or 4 clusters seems reasonable, but we will proceed with 3 clusters as there will be fewer clusters to interpret. 
+```{r}
+drink_cluster_ss <- function(k){
+    # Perform clustering
+    kclust <- kmeans(scale(drinks_sub), centers = k)
+
+    # Return the total within-cluster sum of squares
+    return(kclust$tot.withinss)
+}
+
+tibble(
+    k = 1:15,
+    tot_wc_ss = purrr::map_dbl(1:15, drink_cluster_ss)
+) %>% 
+    ggplot(aes(x = k, y = tot_wc_ss)) +
+    geom_point() + 
+    labs(x = "Number of clusters",y = 'Total within-cluster sum of squares') + 
+    theme_classic()
+```
+
+```{r}
+#learn about the new cluster assignments
+drinks %>%
+    group_by(kclust_3_scale) %>%
+  mutate(milk_bin = case_when(milk >= 1 ~ 1, 
+                              TRUE ~ 0)) %>%
+    summarize(across(c(whip, total_fat_g, saturated_fat_g, total_carbs_g, cholesterol_mg, caffeine_mg, fiber_g, sodium_mg, milk_bin), mean))
+
+# Visualize the new cluster assignments
+ggplot(drinks, aes(x = calories, y = sugar_g, color = kclust_3_scale)) +
+  geom_point() +
+  labs(title = "CLUSTERING STARBUCKS GRANDE DRINKS", y = "sugar (g)", caption = "Data courtesy of PythonCoderUnicorn")+
+  theme_minimal()+
+  theme(plot.title = element_markdown(family = "kanit", face = "bold", color = "white"),
+        plot.title.position = "plot",
+        axis.text = element_markdown(family = "kanit", color = "white"), 
+        axis.title =  element_markdown(family = "kanit", color = "white"), 
+        axis.ticks = element_blank(), 
+        axis.line = element_line(color = "white"),
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "#0A0A0A"), 
+        legend.position = "none", 
+        plot.caption = element_markdown(family = "kanit", color = "white"))+
+  scale_color_manual(values = c("#006442", "#E0BE85", "white"))+
+  annotate(geom="text", y=37, x=480, label = "high fat, carb, & \nsodium milk based \ndrinks with whip", family = "gochi", cex=3, color = "#E0BE85")+
+  annotate(geom="text", y=8, x=220, label = "low fat, carb, & sodium \nhighly caffinated \nno whip drinks", family = "gochi", cex=3, color = "white")+
+  annotate(geom="text", y=50, x=140, label = "low fat, high carb, high \nsodium drinks \nwith less caffeine", family = "gochi", cex=3, color = "#006442")
+  
+```
+
