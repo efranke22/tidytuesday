@@ -1,0 +1,107 @@
+---
+title: "12/31/2021 Running Map"
+author: "Erin Franke"
+=output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+Load libraries and data
+```{r}
+library(tidyverse)
+library(ggmap)
+library(lubridate)
+library(stringr)
+library(XML)
+library(gganimate)
+library(maps)
+library(ggthemes)
+library(ggimage)
+library(showtext)
+library(ggtext)
+
+font_add_google("Kanit", "kanit", bold.wt = 600)
+showtext_auto()
+
+runData <- xmlParse("activity_8037588359.tcx")
+
+#Import raw TCX to dataframe. This will be used to generate map data
+runRawData <- xmlToDataFrame(nodes <- getNodeSet(runData, "//ns:Trackpoint", "ns"))
+head(runRawData)
+```
+
+Clean the data
+```{r}
+nyeRun <- runRawData %>%
+  separate(Position, c("lat", "lon"), "-") %>%
+  mutate(across(c(lat, lon, AltitudeMeters, DistanceMeters, HeartRateBpm), as.numeric), 
+         lon = -1*lon,
+         Time = substr(Time, 12, 19), 
+         distance = DistanceMeters/1609, 
+         altitude = 3.28084*AltitudeMeters)
+
+#fixing up the time
+nyeRun$Time <- as.POSIXct(nyeRun$Time,format="%H:%M:%S")
+hrs <- 6 * 60 * 60
+nyeRun$Time <- nyeRun$Time - hrs
+
+#create a lagged variable for speed
+nyeRun <- nyeRun %>% 
+  mutate(lagTime = dplyr::lag(Time, n = 25, default = NA), 
+         timediff = Time - lagTime,
+         secondsdiff = as.numeric(word(timediff, 1))/3600,
+         lagDist = dplyr::lag(distance, n=25, default = NA), 
+         distdiff = distance - lagDist, 
+         speed = distdiff / secondsdiff, 
+         pace = 60/speed)
+
+#select variables of interest
+nyeRun <- nyeRun %>% select(Time, lat, lon, distance, altitude, HeartRateBpm, pace)
+```
+
+Create the map! 
+```{r}
+chicago_map <- panama_map <- get_stamenmap(
+    bbox = c(left = -87.7100, bottom = 41.94, right = -87.65, top = 41.9699),
+    maptype = "terrain",
+    zoom = 14)
+
+transparent_runner = "https://raw.githubusercontent.com/efranke22/stat112/main/homework_5_stat112/411-4111500_noun-project-running-icon-png-transparent-png.png"
+
+nyeRun <- nyeRun %>%
+  mutate(runnerImage = transparent_runner)
+
+running_gif <- ggmap(chicago_map)+
+  geom_path(data = nyeRun, 
+            aes(x=lon, y=lat, color = pace), 
+            size = 1.9) + 
+   geom_image(data = nyeRun, aes(x=lon, y=lat, image = runnerImage),
+             size = 0.06) +
+  geom_point(aes(x=-87.66424, y=41.94934), color = "black", size = 2.5)+
+  geom_point(aes(x=-87.65962, y=41.94899), color = "black", size = 2.5)+
+  geom_point(aes(x=-87.67120, y=41.94342), color = "black", size = 2.5)+
+  geom_point(aes(x=-87.68801, y=41.94480), color = "black", size = 2.5)+
+  geom_point(aes(x=-87.69627, y=41.95197), color = "black", size = 2.5)+
+  geom_point(aes(x=-87.69833, y=41.96353), color = "black", size = 2.5)+
+  geom_point(aes(x=-87.68597, y=41.96475), color = "black", size = 2.5)+
+  geom_point(aes(x=-87.67886, y=41.95447), color = "black", size = 2.5)+
+  annotate(geom = "text", x=-87.655, y=41.95, label = "Wrigley Field :)", fontface = "bold", cex=3.5, color = "black")+
+  annotate(geom = "text", x=-87.65962, y=41.948, label = "Mile 2", fontface = "bold", cex=3.5, color = "black")+ 
+annotate(geom = "text",-87.6857, y=41.94480, label = "Mile 4", fontface = "bold", cex=3.5, color = "black")+
+  annotate(geom = "text", x=-87.696, y=41.96353, label = "Mile 6", fontface = "bold", cex=3.5, color = "black")+
+  annotate(geom = "text", x=-87.6742, y=41.95447, label = "Mile 8 Finish! \n1:00:56", fontface = "bold", cex=4, color = "black")+
+  theme_map()+
+  scale_color_viridis_c(option = "magma") + 
+  labs(title = "New Year's Eve Long Run", 
+       subtitle = {"Time: {frame_along}"}, 
+       color = "Pace (min/mile)")+
+  theme(plot.title = element_markdown(size = 11, face = "bold"), 
+        plot.subtitle = element_markdown(face = "bold", size = 9))+
+  transition_reveal(Time)
+
+animate(running_gif, duration=15, end_pause = 2)
+anim_save("nyeRun.gif")
+```
+
