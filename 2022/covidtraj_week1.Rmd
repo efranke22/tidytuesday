@@ -1,0 +1,50 @@
+---
+title: "Tidy Tuesday 2022 Week 1"
+author: "Erin Franke"
+date: "1/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggmap)
+library(ggthemes)
+library(gganimate)
+library(showtext)
+library(ggtext)
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+font_add_google("Kanit", "kanit")
+showtext_auto()
+covid19 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv")
+statePops <- read_csv("statePop.csv")
+```
+
+```{r}
+states_map <- map_data("state") 
+
+covid19 %>%
+  left_join(statePops, by = c("state" = "State")) %>%
+  select(date, state, cases, deaths, Pop) %>%
+  mutate(cases_pop = 100 *(cases/Pop), 
+         state = str_to_lower(state)) %>%
+  group_by(state) %>%
+  filter(date == "2022-01-01") %>%
+  ggplot() +
+  geom_map(map = states_map,
+           aes(map_id = state, group = date,
+               fill = cases_pop)) +
+  expand_limits(x = states_map$long, y = states_map$lat) + 
+  scale_fill_viridis_c(option = "E")+
+  labs(title = "Percent of state population with a confirmed COVID-19 case as of Jan 1, 2022", fill = "", caption = "Data from New York Times and World Population Review") +
+  theme_map() +
+  theme(legend.background = element_blank(), 
+        plot.title = element_markdown(family = "bell"), 
+        plot.caption = element_markdown(family = "bell"))
+```
+
+
