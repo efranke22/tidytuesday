@@ -1,0 +1,97 @@
+---
+title: 'Tidy Tuesday Week 2: Bees'
+author: "Erin Franke"
+date: "1/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+library(ggtext)
+library(showtext)
+library(ggalt)
+library(patchwork)
+library(jpeg)
+library(png)
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+font_add_google("Kanit", "kanit", bold.wt = 600)
+showtext_auto()
+colony <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-11/colony.csv')
+stressor <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-11/stressor.csv')
+```
+
+```{r}
+set.seed(253)
+graph1 <- colony %>%
+  filter(months != "2019") %>%
+  group_by(state) %>%
+  mutate(year = as.numeric(year), 
+         max_colonies = max(colony_n, na.rm = TRUE),
+         months = fct_relevel(as.factor(months), levels = "January-March", "April-June", "July-September", "October-December"),
+         quarter = paste(months, year), 
+         dif = colony_added - colony_lost, 
+         dif_pct = 100*(dif/max_colonies)) %>%
+  ungroup() %>%
+  ggplot(aes(x=months, y=dif_pct))+
+  geom_jitter(shape = 18, color = "yellow")+
+  ylim(c(-45,48))+
+  geom_hline(yintercept = 0, color = "white", linetype = "dashed")+
+   geom_curve(aes(x = 1.5, y = -43, xend = 0.71, yend = -43), 
+             arrow = arrow(length = unit(0.03, "npc")), curvature = 0.3, color = "white")+
+  geom_curve(aes(x = 1.75, y = 46, xend = 2.3, yend = 46), 
+            arrow = arrow(length = unit(0.03, "npc")), curvature = -0.3, color = "white")+
+  theme_minimal()+ 
+  labs(x= "months", y="% growth of maximum colony size", title = "Tracking the seasonal growth of honey bee colonies", caption = "Data from USDA")+
+  theme(plot.title = element_markdown(family = "bell", face = "bold", color = "white"),
+        plot.title.position = "plot",
+        axis.text = element_markdown(family = "bell", color = "white"), 
+        axis.title =  element_markdown(family = "bell", color = "white"), 
+        axis.ticks = element_blank(), 
+        axis.line = element_line(color = "white"),
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "lightslategray"), 
+        legend.position = "none", 
+        plot.caption = element_markdown(family = "bell", color = "white"))+
+  annotate(geom="text", x=2, y=-37, label = "New Mexico loses a net 3720 \ncolonies in Jan-March 2018 \nlargely from Varroa mites, \n43% of their 8500 maximum", family= "bell", cex=2.5, color = "white")+
+  annotate(geom="text", x=1.28, y=43, label = "Kansas adds a net 4030 colonies \nin spring 2021 to reach a total \nof 7500, just shy of their 9000 \nmaximum reached in 2015", family= "bell", cex=2.5, color = "white")
+```
+
+Another graph
+```{r}
+colony %>%
+  filter(months != "2019", 
+         state!= "United States") %>%
+  group_by(state) %>%
+  mutate(year = as.numeric(year), 
+         max_colonies = max(colony_n),
+         months = fct_relevel(as.factor(months), levels = "January-March", "April-June", "July-September", "October-December"),
+         quarter = paste(months, year), 
+         dif = colony_added - colony_lost, 
+         dif_pct = 100*(dif/max_colonies), 
+         quarter = fct_relevel(as.factor(quarter), levels = c("January-March 2015", "April-June 2015", "July-September 2015", "October-December 2015", "January-March 2016", "April-June 2016", "July-September 2016", "October-December 2016", "January-March 2017", "April-June 2017", "July-September 2017", "October-December 2017", "January-March 2018", "April-June 2018", "July-September 2018", "October-December 2018", "January-March 2019", "April-June 2019", "July-September 2019", "October-December 2019", "January-March 2020", "April-June 2020", "July-September 2020", "October-December 2020", "January-March 2021", "April-June 2021", "July-September 2021", "October-December 2021"))) %>%
+  ungroup() %>%
+  group_by(quarter) %>%
+  summarize(medCol = median(colony_n, na.rm=TRUE)) %>%
+  ggplot(aes(x=as.numeric(quarter), medCol))+
+  geom_smooth(se = FALSE, col = "yellow")+
+  scale_x_continuous(breaks=seq(0,25,by=4), labels = c("", "Oct-Dec 2015", "", "Oct -Dec 2017", "", "Oct-Dec 2019", ""))+
+  labs(x = "", y="", title = "Median colonies/state 2015-2021")+
+  theme_minimal()+
+  theme(plot.title = element_markdown(family = "bell", face = "bold", color = "white"),
+        plot.title.position = "plot",
+        axis.text = element_markdown(family = "bell", color = "white"), 
+        axis.title =  element_markdown(family = "bell", color = "white"), 
+        axis.ticks = element_blank(), 
+        axis.line = element_line(color = "white"),
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "lightslategray"), 
+        legend.position = "none", 
+        plot.caption = element_markdown(family = "bell", color = "white"))
+```
+
