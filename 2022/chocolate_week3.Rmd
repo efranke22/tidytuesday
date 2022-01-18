@@ -145,7 +145,7 @@ tibble(
 ```
 
 Create final graph. 
-```{r}
+```{r} 
 clean_choc %>%
     group_by(kclust_3_scale) %>%
     summarize(across(c(rating, num_ingredients, char_earthy, char_nutty, char_roasty, char_sour, char_sandy, salt, letchin, cocoa_butter, vanilla, char_creamy), mean))
