@@ -1,0 +1,171 @@
+---
+title: "Tidy Tuesday Week 3 - Chocolate Bars"
+author: "Erin Franke"
+date: "1/18/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(tidyr)
+library(ggtext)
+library(showtext)
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+font_add_google("Kanit", "kanit", bold.wt = 600)
+showtext_auto()
+chocolate <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-18/chocolate.csv')
+```
+
+Get a sense of what types of categories we have:
+```{r}
+# 580 manufacturers
+chocolate %>%
+  group_by(company_manufacturer) %>%
+  count()
+# 67 locations
+chocolate %>%
+  group_by(company_location) %>%
+  count() %>%
+  arrange(desc(n))
+# 62 countries of origin
+chocolate %>%
+  group_by(country_of_bean_origin) %>%
+  count() %>%
+  arrange(desc(n))
+# ingredients 
+chocolate %>%
+  group_by(ingredients) %>%
+  count()
+# ref
+chocolate %>%
+  group_by(ref) %>%
+  count()
+```
+
+Try to understand the `most_memorable_characteristics` column! 
+```{r}
+chocolate %>%
+  mutate(id = row_number(), 
+    most_memorable_characteristics = strsplit(as.character(most_memorable_characteristics), ",")) %>%
+  unnest(most_memorable_characteristics) %>%
+  pivot_wider(id_cols = c(id, rating, ingredients, cocoa_percent, specific_bean_origin_or_bar_name, country_of_bean_origin, review_date, company_location, company_manufacturer, ref), names_from = most_memorable_characteristics, values_from = most_memorable_characteristics) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  pivot_longer(cols = -c(id:ref), names_to = "characteristic", values_to = "num_na") %>%
+  mutate(times = 2530 - num_na) %>%
+  arrange(desc(times)) %>%
+  select(characteristic, times)
+```
+
+Create additional columns for top 8 most used characteristics and each ingredient.
+```{r}
+clean_choc <- chocolate %>%
+  mutate(cocoa_percent = as.numeric(substr(cocoa_percent, 1, nchar(cocoa_percent) -1)), 
+         num_ingredients  = as.numeric(substr(ingredients, 1, 1)), 
+         beans = case_when(as.integer(str_detect(ingredients,"B")) == 1 ~ 1, 
+                           TRUE ~ 0), 
+         sugar = case_when(as.integer(str_detect(ingredients,"S")) == 1 ~ 1, 
+                           TRUE ~ 0), 
+         cocoa_butter = case_when(as.integer(str_detect(ingredients,"C")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         vanilla = case_when(as.integer(str_detect(ingredients,"V")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         letchin = case_when(as.integer(str_detect(ingredients,"L")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         salt = case_when(as.integer(str_detect(ingredients,"Sa")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_cocoa = case_when(as.integer(str_detect(most_memorable_characteristics, "cocoa")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_sweet = case_when(as.integer(str_detect(most_memorable_characteristics, "sweet")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_nutty = case_when(as.integer(str_detect(most_memorable_characteristics, "nutty")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_creamy = case_when(as.integer(str_detect(most_memorable_characteristics, "creamy")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_roasty = case_when(as.integer(str_detect(most_memorable_characteristics, "roasty")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_earthy = case_when(as.integer(str_detect(most_memorable_characteristics, "earthy")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_sandy = case_when(as.integer(str_detect(most_memorable_characteristics, "sandy")) == 1 ~ 1,
+                                  TRUE ~ 0), 
+         char_sour = case_when(as.integer(str_detect(most_memorable_characteristics, "sour")) == 1 ~ 1,
+                                  TRUE ~ 0))
+```
+
+Cluster the chocolates using `total_fat_g`, `sodium_mg`, and `total_carbs_g`. On the final plot, we will plot the drinks by `cocoa_percent` and `rating`. 
+```{r}
+choc_sub <- clean_choc %>%
+  filter(num_ingredients >=1) %>%
+  select(num_ingredients, vanilla, char_sandy, char_creamy, letchin, salt, char_sweet, char_nutty, char_roasty, char_sour)
+```
+
+```{r}
+# Run k-means for k = centers = 3
+set.seed(253)
+kclust_k2 <- kmeans(choc_sub, centers = 2)
+kclust_k3 <- kmeans(choc_sub, centers = 3)
+kclust_k4 <- kmeans(choc_sub, centers = 4)
+```
+
+```{r}
+# Run k-means on the *scaled* data (all variables have SD = 1)
+set.seed(253)
+kclust_k2_scale <- kmeans(scale(choc_sub), centers = 2)
+kclust_k3_scale <- kmeans(scale(choc_sub), centers = 3)
+kclust_k4_scale <- kmeans(scale(choc_sub), centers = 4)
+clean_choc <- clean_choc %>%
+  filter(num_ingredients >=1) %>%
+    mutate(kclust_3_scale = factor(kclust_k3_scale$cluster), 
+           kclust_4_scale = factor(kclust_k4_scale$cluster), 
+           kclust_2_scale = factor(kclust_k2_scale$cluster))
+```
+
+Check out the within-cluster sum of squares. 3 clusters seems reasonable. 
+```{r}
+choc_cluster_ss <- function(k){
+    # Perform clustering
+    kclust <- kmeans(scale(choc_sub), centers = k)
+
+    # Return the total within-cluster sum of squares
+    return(kclust$tot.withinss)
+}
+
+tibble(
+    k = 1:15,
+    tot_wc_ss = purrr::map_dbl(1:15, choc_cluster_ss)
+) %>% 
+    ggplot(aes(x = k, y = tot_wc_ss)) +
+    geom_point() + 
+    labs(x = "Number of clusters",y = 'Total within-cluster sum of squares') + 
+    theme_classic()
+```
+
+```{r}
+clean_choc %>%
+    group_by(kclust_3_scale) %>%
+    summarize(across(c(rating, num_ingredients, char_earthy, char_nutty, char_roasty, char_sour, char_sandy, salt, letchin, cocoa_butter, vanilla, char_creamy), mean))
+
+ggplot(clean_choc, aes(x = cocoa_percent, y = rating, color = kclust_3_scale)) +
+  geom_jitter()+
+  labs(title = "We can't learn too much about chocolate bars when clustering on their ingredients and memorable characteristics", y = "rating 1-5", x = "cocoa percent", caption = "Data courtesy of Flavors of Cacao")+
+  theme_minimal()+
+  theme(plot.title = element_markdown(family = "bell", face = "bold", color = "white", size = 9),
+        plot.title.position = "plot",
+        axis.text = element_markdown(family = "bell", color = "white"), 
+        axis.title =  element_markdown(family = "bell", color = "white"), 
+        axis.ticks = element_blank(), 
+        axis.line = element_line(color = "white"),
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "#5F3E3D"), 
+        legend.position = "none", 
+        plot.caption = element_markdown(family = "bell", color = "white"))+
+  scale_color_manual(values = c("#F24A07", "#FBD900", "black"))+
+  annotate(geom="text", y=1.2, x=90, label = "avg 3.08 ingredients & a 3.23 \navg rating", family = "gochi", cex=3, color = "black")+
+  annotate(geom="text", y=1.5, x=53, label = "all described as sour but maintain an \navg rating of 3.03 with 2.76 ingredients \non average", family = "gochi", cex=3, color = "#FBD900")+
+  annotate(geom="text", y=3.2, x=50, label = "3.22 avg rating with 2.89 \ningredients on avg, \nall described as roasty", family = "gochi", cex=3, color = "#F24A07")
+```
+
