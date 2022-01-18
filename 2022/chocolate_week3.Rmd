@@ -96,7 +96,7 @@ clean_choc <- chocolate %>%
                                   TRUE ~ 0))
 ```
 
-Cluster the chocolates using `total_fat_g`, `sodium_mg`, and `total_carbs_g`. On the final plot, we will plot the drinks by `cocoa_percent` and `rating`. 
+Cluster the chocolates using several variables. On the final plot, plot the drinks by `cocoa_percent` and `rating`. 
 ```{r}
 choc_sub <- clean_choc %>%
   filter(num_ingredients >=1) %>%
@@ -124,7 +124,7 @@ clean_choc <- clean_choc %>%
            kclust_2_scale = factor(kclust_k2_scale$cluster))
 ```
 
-Check out the within-cluster sum of squares. 3 clusters seems reasonable. 
+Check out the within-cluster sum of squares.
 ```{r}
 choc_cluster_ss <- function(k){
     # Perform clustering
@@ -144,6 +144,7 @@ tibble(
     theme_classic()
 ```
 
+Create final graph. 
 ```{r}
 clean_choc %>%
     group_by(kclust_3_scale) %>%
