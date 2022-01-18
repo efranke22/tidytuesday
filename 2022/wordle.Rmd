@@ -1,0 +1,204 @@
+---
+title: "Try to analyze Wordle Data?"
+author: "Erin Franke"
+date: "1/18/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(ggtext)
+library(showtext)
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+font_add_google("Kanit", "kanit", bold.wt = 600)
+showtext_auto()
+
+twirdle <- function(tweets) {
+  
+  g   <- "\U1F7E9"
+  o   <- "\U1F7E7"
+  y   <- "\U1F7E8"
+  blu <- "\U1F7E6"
+  bla <- "\U2B1B"
+  w   <- "\U2B1C"
+  
+  rx_all   <- paste(g, o, y, blu, bla, w, sep = "|")
+  rx_right <- paste(g, o, sep = "|")
+  rx_place <- paste(y, blu, sep = "|")
+  rx_wrong <- paste(bla, w, sep = "|")
+  rx_color <- paste(o, blu, sep = "|")
+
+  tweets$meta <- regexpr(
+    "Wordle \\d{1,} [\\d{1}|X]/\\d{1}",
+    tweets$text,
+    perl = TRUE
+  )
+  
+  tweets$meta <- setNames(
+    tweets$meta, 
+    ifelse(tweets$meta < 0, FALSE, TRUE)
+  )
+  
+  tweets$meta <- ifelse(
+    names(tweets$meta),
+    regmatches(tweets$text, tweets$meta),
+    NA_character_
+  )
+  
+  tweets <- tweets[!is.na(tweets$meta), ]
+  
+  tweets$edition <- as.numeric(
+    regmatches(
+      tweets$meta, 
+      regexpr("\\d{1,}", tweets$meta)
+    )
+  )
+  
+  tweets$attempts <- regmatches(
+    tweets$meta,
+    regexpr("[\\d{1}|X](?=/)", tweets$meta, perl = TRUE)
+  )
+  
+  tweets$attempts <- ifelse(
+    tweets$attempts == "X",
+    NA_character_,
+    tweets$attempts
+  )
+  
+  tweets$attempts <- as.numeric(tweets$attempts)
+  
+  tweets$allowed <- as.numeric(
+    regmatches(
+      tweets$meta, 
+      regexpr("(?<=/)\\d{1}", tweets$meta, perl = TRUE)
+    )
+  )
+  
+  tweets$grid <- regmatches(
+    tweets$text, 
+    gregexpr(rx_all, tweets$text) 
+  )
+  
+  tweets$grid <- lapply(
+    tweets$grid, 
+    function(x) paste(x, collapse = "")
+  )
+  
+  tweets$colorblind <- ifelse(
+    grepl(rx_color, tweets$grid), TRUE, FALSE
+  )
+  
+  tweets$mode <- ifelse(
+    grepl(bla, tweets$grid), "dark",
+    ifelse(grepl(w, tweets$grid), "light", "unknown")
+  )
+  
+  tweets$grid <- gsub(rx_right, "G", tweets$grid)
+  tweets$grid <- gsub(rx_place, "Y", tweets$grid)
+  tweets$grid <- gsub(rx_wrong, "-", tweets$grid)
+  
+  tweets[, c("edition", "attempts", "allowed", "mode",
+             "colorblind", "grid", "status_id")]
+  
+}
+```
+
+Load in tweets
+```{r, eval=FALSE}
+tweets <- rtweet::search_tweets(
+  q = "Wordle \U2B1B OR \U2B1C",
+  n = 10000,  # return 10 tweets
+  include_rts = FALSE  # no retweets
+)
+```
+
+Filter for twirdle edition 213 and remove any attempts that were 0. Create a first guess and last guess column, and whether the final guess was correct. 
+```{r}
+twirdle213 <- twirdle(tweets) %>%
+  filter(edition == 213, attempts >= 1) %>%
+  mutate(first_guess = substr(grid, 1, 5), 
+         last_guess = substr(grid, nchar(grid)-4, nchar(grid)), 
+         correct = case_when(last_guess == "GGGGG" ~ "yes",
+                             last_guess == "" ~ "yes",
+                             TRUE ~ "no"), 
+         attempts2 = as.integer(nchar(grid)/5))
+```
+
+Learn some stats about wordle 213:
+```{r}
+#learn some stats about wordle 213 - 95.7% of people were about to complete the wordle
+twirdle213 %>%
+  group_by(correct) %>%
+  count()
+5649/(5649+253)
+
+# for those that completed the wordle, the average number of attempts was 4.308
+twirdle213 %>%
+  filter(correct == "yes") %>%
+  summarize(avg = mean(attempts2))
+
+# find how many people did not get any letters correct the first word: 22.04% of people got no letters correct in their first word
+twirdle213 %>%
+  group_by(first_guess) %>%
+  count()
+1301/5902
+
+# find how many people got at least one green on the first try - 40.36 %
+twirdle213 %>%
+  mutate(green = case_when(as.integer(str_detect(first_guess,"G")) == 1 ~ 1, 
+                           TRUE ~ 0)) %>%
+  group_by(green) %>%
+  count()
+2382/(2382+3520)
+
+# for those that it took at least 4 attempts, the average number of Green letters in word 3 was 2.025
+twirdle213 %>%
+  filter(attempts2 >=4) %>%
+  mutate(guess3 = substr(grid, 11, 15), 
+         count3G = str_count(guess3, "G")) %>%
+  summarize(mean(count3G))
+
+# no one got it in 1 attempt
+twirdle213 %>%
+  filter(attempts2 == 1)
+```
+
+
+Looking at Wordle 213: Remove people whose last guess was incorrect and display the number of tries it took for people to get the wordle who did not give up and got it in 6 or fewer tries. 
+```{r}
+twirdle213 %>%
+  filter(correct == "yes", 
+         attempts2 >0 & attempts2 <=6) %>%
+  tabyl(attempts2) %>%
+  ggplot(aes(x=attempts2, y=percent))+
+  geom_col(fill = "#6DA962")+
+  theme_minimal()+
+  labs(title = "A quick analysis of Wordle 213 from 5,902 tweets - no one guessed it on attempt 1!", y = "proportion of users", x = "attempts", caption = "Courtesy to Matt Dray for twirdle function!")+
+  geom_vline(xintercept = 4.308, color = "white", linetype = "dashed")+
+  ylim(0, 0.3)+
+  xlim(1, 6)+
+  theme_minimal()+
+  theme(plot.title = element_markdown(family = "bell", face = "bold", color = "white", size = 11),
+        plot.title.position = "plot",
+        axis.text = element_markdown(family = "bell", color = "white"), 
+        axis.title =  element_markdown(family = "bell", color = "white"), 
+        axis.ticks = element_blank(), 
+        axis.line = element_line(color = "white"),
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "#7B7B7B"), 
+        legend.position = "none", 
+        plot.caption = element_markdown(family = "bell", color = "white"))+
+  annotate(geom="text", y=0.25, x=1.5, label = "Fact 1: 95.7% of tweeters \ncompleted this wordle", family = "bell", cex=3.2, color = "#CCB35B")+
+  annotate(geom="text", y=0.2, x=4.31, label = "Avg number of \nattempts was 4.308", family = "bell", cex=3.2, color = "white")+
+  annotate(geom="text", y=0.17, x=1.5, label = "Fact 2: 22.04% of tweeters \n got no letters correct (all \ngray) on their 1st attempt", family = "bell", cex=3.2, color = "#CCB35B")+
+  annotate(geom="text", y=0.1, x=1.6, label = "Fact 3: 40.36% of tweeters got \n1+ green letters on attempt 1", family = "bell", cex=3.2, color = "#CCB35B")+
+  annotate(geom="text", y=0.265, x=3, label = "Fact 4: For those \nit took 4+ attempts, \nthe average number \nof green letters in \nword 3 was 2.025", family = "bell", cex=3.2, color = "#CCB35B")
+```
+
+
