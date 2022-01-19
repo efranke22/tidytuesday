@@ -181,7 +181,7 @@ twirdle213 %>%
   theme_minimal()+
   labs(title = "A quick analysis of Wordle 213 from 5,902 tweets - no one guessed it on attempt 1!", y = "proportion of users", x = "attempts", caption = "Courtesy to Matt Dray for twirdle function!")+
   geom_vline(xintercept = 4.308, color = "white", linetype = "dashed")+
-  ylim(0, 0.3)+
+  ylim(0, 0.33)+
   xlim(1, 6)+
   theme_minimal()+
   theme(plot.title = element_markdown(family = "bell", face = "bold", color = "white", size = 11),
@@ -195,10 +195,10 @@ twirdle213 %>%
         legend.position = "none", 
         plot.caption = element_markdown(family = "bell", color = "white"))+
   annotate(geom="text", y=0.25, x=1.5, label = "Fact 1: 95.7% of tweeters \ncompleted this wordle", family = "bell", cex=3.2, color = "#CCB35B")+
-  annotate(geom="text", y=0.2, x=4.31, label = "Avg number of \nattempts was 4.308", family = "bell", cex=3.2, color = "white")+
-  annotate(geom="text", y=0.17, x=1.5, label = "Fact 2: 22.04% of tweeters \n got no letters correct (all \ngray) on their 1st attempt", family = "bell", cex=3.2, color = "#CCB35B")+
-  annotate(geom="text", y=0.1, x=1.6, label = "Fact 3: 40.36% of tweeters got \n1+ green letters on attempt 1", family = "bell", cex=3.2, color = "#CCB35B")+
-  annotate(geom="text", y=0.265, x=3, label = "Fact 4: For those \nit took 4+ attempts, \nthe average number \nof green letters in \nword 3 was 2.025", family = "bell", cex=3.2, color = "#CCB35B")
+  annotate(geom="text", y=0.3, x=4.31, label = "Avg number of \nattempts was 4.308", family = "bell", cex=3.2, color = "white")+
+  annotate(geom="text", y=0.19, x=1.5, label = "Fact 2: 22.04% of tweeters \n got no letters correct (all \ngray) on their 1st attempt", family = "bell", cex=3.2, color = "#CCB35B")+
+  annotate(geom="text", y=0.12, x=1.6, label = "Fact 3: 40.36% of tweeters got \n1+ green letters on attempt 1", family = "bell", cex=3.2, color = "#CCB35B")+
+  annotate(geom="text", y=0.3, x=3, label = "Fact 4: For those \nit took 4+ attempts, \nthe average number \nof green letters in \nword 3 was 2.025", family = "bell", cex=3.2, color = "#CCB35B")
 ```
 
 
