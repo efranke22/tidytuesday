@@ -1,0 +1,101 @@
+---
+title: "Tidy Tuesday Week 20"
+author: "Erin Franke"
+date: "5/17/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+library(sf)
+library(rnaturalearth)
+library(rgeos)
+library(ggtext)
+library(showtext)
+eurovision <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-05-17/eurovision.csv')
+euro_votes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-05-17/eurovision-votes.csv')
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+showtext_auto()
+```
+
+```{r}
+#find years where there is only one winner 
+one_winner_years <- eurovision %>%
+  filter(winner==TRUE) %>%
+  group_by(year) %>%
+  count() %>%
+  arrange(desc(n)) %>%
+  filter(n == 1)
+
+# get each country's most recent win
+recent_wins <- eurovision %>%
+  select(year, artist_country, total_points, winner) %>%
+  filter(year %in% one_winner_years$year) %>%
+  mutate(years_since_win = case_when(winner==TRUE ~ 2022-year, 
+                                     winner==FALSE ~ 100)) %>%
+  group_by(artist_country) %>%
+  mutate(most_recent_win = min(years_since_win)) %>%
+  filter(years_since_win == most_recent_win, most_recent_win < 100)
+
+years_wanted <- recent_wins$year
+  
+winner_points <- eurovision %>%
+  select(year, artist_country, total_points, winner) %>%
+  filter(year %in% one_winner_years$year) %>%
+  group_by(year) %>%
+  mutate(rank = dense_rank(desc(total_points))) %>%
+  filter(rank %in% c(1,2)) %>%
+  group_by(artist_country) %>%
+  mutate(years_since_win = case_when(winner==TRUE ~ 2022-year, 
+                                     winner==FALSE ~ 100)) %>%
+  group_by(artist_country) %>%
+  mutate(most_recent_win = min(years_since_win)) %>%
+  filter(year %in% years_wanted) %>%
+  group_by(year) %>%
+  mutate(win_by = max(total_points) - min(total_points)) %>%
+  filter(winner == TRUE) %>%
+  select(year, artist_country, total_points, years_since_win, win_by)
+```
+
+Create the map
+```{r}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+joined <- world %>%
+  mutate(name_long = case_when(name_long == "Macedonia" ~ "Yugoslavia",
+         TRUE ~ name_long)) %>%
+  left_join(winner_points, by = c("name_long" = "artist_country")) %>%
+  mutate(win_by = replace_na(win_by, 0))
+
+country_labels <- joined %>%
+  filter(win_by >0)
+
+joined %>%
+  ggplot() + 
+  geom_sf(aes(fill = win_by), color = "gray", lwd = 0.2) +
+  geom_sf_text(data = country_labels, aes(label = name_long), colour = "navy", size =1.5, family = "mono")+
+  coord_sf(xlim = c(-20, 45), ylim = c(30, 83), expand = FALSE) +
+  theme_classic()+
+  scale_fill_gradient2(low = "white", high = "orange")+
+  labs(fill = "", title = "Margin of victory (pts) for each country's last Eurovision win", subtitle = "Covers all years with one winner since 1956 (multiple winners 1969, 2004-2016)", x="", y="", caption = "Data courtesy of Eurovision Song Contest Site")+
+  theme(axis.text = element_blank(), 
+        axis.line = element_blank(),
+        axis.ticks = element_blank(), 
+        plot.title.position = "plot", 
+        plot.title = element_text(size = 9, family = "bell"), 
+        plot.subtitle = element_text(size = 8, family = "bell"), 
+        legend.text = element_text(size = 7, family = "bell"), 
+        plot.background = element_rect("aliceblue"),
+        panel.background = element_rect(fill = "aliceblue"), 
+        legend.background = element_rect(fill = "aliceblue"), 
+        plot.caption = element_text(family = "bell", size = 7))+
+  annotate(geom = "text", x = 37, y = 53, size = 1.8, family = "bell", label = "'Stefania' by Kalush \nOrchestra of Ukraine \n blows away UK artist \nby 165 points in 2022", color = "black")+
+   annotate(geom = "text", x = -9, y = 45, size = 1.8, family = "bell", label = "The UK lost to \nSwitzerland by 1 in 1988 \nand to Spain by 1 in 1968", color = "black")
+```
+
