@@ -24,6 +24,7 @@ font_add_google("Schoolbell", "bell")
 showtext_auto()
 ```
 
+Question: What is the margin of victory in each country's most recent victory (for years where there was only one winner)?
 ```{r}
 #find years where there is only one winner 
 one_winner_years <- eurovision %>%
@@ -43,8 +44,10 @@ recent_wins <- eurovision %>%
   mutate(most_recent_win = min(years_since_win)) %>%
   filter(years_since_win == most_recent_win, most_recent_win < 100)
 
+# years we are interested in 
 years_wanted <- recent_wins$year
   
+# find the margin of victory for winning countries in these years
 winner_points <- eurovision %>%
   select(year, artist_country, total_points, winner) %>%
   filter(year %in% one_winner_years$year) %>%
