@@ -1,0 +1,69 @@
+---
+title: "Tidy Tuesday Artists"
+author: "Erin Franke"
+date: "2023-01-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+library(ggtext)
+library(showtext)
+artists <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-17/artists.csv')
+
+font_add_google("Gochi Hand", "gochi")
+font_add_google("Schoolbell", "bell")
+font_add_google("Kanit", "kanit", bold.wt = 600)
+font_add_google("Carrois Gothic SC")
+font_add_google("Caveat")
+font_add_google("Architects Daughter")
+showtext_auto()
+```
+
+```{r}
+artists %>%
+  distinct(artist_name, artist_unique_id, year, .keep_all = TRUE) %>%
+  group_by(artist_unique_id) %>%
+  arrange(artist_unique_id, year) %>%
+  mutate(past_year_moma = lag(moma_count_to_year), 
+         past_year_moma = case_when(is.na(past_year_moma) ~ 0,
+                                    TRUE ~ past_year_moma), 
+         additions_moma = moma_count_to_year - past_year_moma,
+         past_year_whitney = lag(whitney_count_to_year),
+         past_year_whitney = case_when(is.na(past_year_whitney) ~ 0,
+                                    TRUE ~ past_year_whitney), 
+         additions_whitney = whitney_count_to_year - past_year_whitney) %>%
+  ungroup() %>%
+  arrange(year) %>%
+  group_by(artist_gender) %>%
+  mutate(MoMA = cumsum(additions_moma), Whitney = cumsum(additions_whitney)) %>%
+  pivot_longer(cols = c(MoMA, Whitney), names_to = "Museum", values_to = "total_works") %>%
+  filter(artist_gender != "N/A") %>%
+  rename("Artist Gender" = "artist_gender") %>%
+  ggplot(aes(x=year, y=total_works))+
+  geom_line(aes(linetype = Museum, col = `Artist Gender`), size = 1)+
+  theme_minimal()+
+  labs(title = "Total works by museum and artist gender from Janson’s History of Art and Gardner’s", subtitle = "Art Through the Ages", y = "Total Works", x = "Year", caption = "Data source: arthistory R package | Plot created by Erin Franke")+
+  scale_x_continuous(n.breaks = 10)+
+  scale_color_manual(values = c("#117733", "#DDCC77"))+
+  #theme(axis.title = element_markdown(family = "Carrois Gothic SC", color = "black"))
+  theme(plot.title = element_markdown(family = "Architects Daughter", color = "white", size = 12),
+        plot.subtitle = element_markdown(family = "Architects Daughter", face = "bold", color = "white", size = 12),
+        plot.title.position = "plot",
+        axis.text = element_markdown(family = "Architects Daughter", color = "white"), 
+        axis.title =  element_markdown(family = "Architects Daughter", color = "white"), 
+        axis.ticks = element_blank(), 
+        axis.line = element_line(color = "white"),
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "#888888"),
+        legend.text = element_markdown(family = "Architects Daughter", color = "white"), 
+        legend.title = element_markdown(family = "Architects Daughter", color = "white"),
+        plot.caption = element_markdown(family = "Architects Daughter", color = "black"),
+        plot.caption.position = "plot")
+```
+
