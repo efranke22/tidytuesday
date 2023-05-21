@@ -1,0 +1,75 @@
+---
+title: "Tidy Tuesday Tornados"
+author: "Erin Franke"
+date: "2023-05-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(patchwork)
+library(ggtext)
+library(mapdata)
+library(ggmagnify)
+library(ggfx)
+
+tornados <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-05-16/tornados.csv')
+
+state_info <- map_data("state")
+```
+
+```{r}
+mn_zoom <- tornados %>%
+  filter(st == "MN", yr >= 2000, !is.na(mag)) %>%
+  ggplot() +
+  geom_polygon(aes(x=long, y=lat, group=group), data = state_info %>% filter(region == "minnesota"), fill = NA, color = "black", linewidth = 0.15)+
+  coord_fixed(ratio = 1.4) +
+  geom_point(aes(x=slon, y=slat, color = as.factor(mag), alpha = as.factor(mag)), size = 0.5)+
+  scale_color_manual(values = c("forestgreen", "goldenrod1", "darkorange","cadetblue4", "darkred"))+
+  theme(axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        panel.background = element_rect(fill='transparent'), 
+        legend.background = element_rect(fill='transparent'), #transparent legend bg
+    plot.background = element_rect(fill='transparent', color=NA),
+    plot.margin = unit(c(0,0,0,0), 'cm'),
+    legend.position = "bottom",
+    legend.margin=margin(t=-35),
+    legend.key.size = unit(0.3, 'cm'), #change legend key size
+    legend.key.height = unit(0.05, 'cm'), #change legend key height
+    legend.key.width = unit(0.3, 'cm'))+ #change legend key width
+  labs(x= "", y= "", size = "Mag", color = "Mag", alpha = "Mag")
+
+main <- tornados %>%
+  filter(!st %in% c("HI", "AK", "VI")) %>%
+  filter(yr >= 2000, slat > 25) %>%
+  ggplot()+
+  geom_polygon(aes(x=long, y=lat, group=group), data = state_info, fill = NA, color = "black", linewidth = 0.15)+
+  coord_fixed(ratio = 1.3) +
+  geom_density2d_filled(aes(x=slon, y=slat), show.legend = FALSE, alpha = 0.4, bins =7)+
+  scale_fill_manual(values = c("white","#CEE9E9", "#84BBD8", "#F8F2BE", "#FEC376", "#F88A51", "#A50026"))+
+  theme(axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        axis.text = element_blank(),
+        plot.margin = unit(c(0,0,0,0), 'cm'), 
+        plot.title = element_text(size = 10),
+        plot.subtitle = element_text(size = 8))+
+  labs(x= "", y= "", title = "Tornado Patterns in the United States since 2000 (with a focus on Minnesota)", subtitle = "The map of the United States displays the density of tornado counts across the United States, with areas in white \nbeing the lowest and those in red the highest. Zooming in on Minnesota, all tornados since 2000 are plotted by \nmagnitude at their starting location. Tornado magnitude is recorded on a 0 to 5 scale, with 5 being highest.")+
+   geom_curve(aes(x = -94, xend = -65, y = 46, yend = 46),arrow = arrow(length = unit(0.03, "npc")), curvature = -0.4)
+```
+
+```{r}
+layout <- c(
+  area(t = 2, l = 1, b = 5, r = 4),
+  area(t = 2, l = 4.5, b = 4, r = 6.5))
+
+main +
+  mn_zoom +
+  plot_layout(design = layout)+
+  plot_annotation(caption = "Erin Franke @efranke7282 \n Data from NOAA's National Weather Service Storm Prediction Center")
+```
+
