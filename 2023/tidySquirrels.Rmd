@@ -68,6 +68,6 @@ cloud <- words_df %>%
 
 ```{r}
 theme_border <- theme(plot.background = element_rect(fill = NA, colour = 'black', linewidth = 1))
-map + cloud + plot_annotation(theme = theme_border, title = "Squirrels in Central Park: Where are they and how are they described?", subtitle = "Verbs from extra information provided for 437 sightings. All data collected in Oct 2018.", caption= "Erin Franke @efranke7282 \n Data from 2018 Central Park Squirrel Census")
+map + cloud + plot_annotation(theme = theme_border, title = "Squirrels in Central Park: Where are they and how are they described?", subtitle = "Verbs from extra observations provided for 437 sightings. All data collected in Oct 2018.", caption= "Erin Franke @efranke7282 \n Data from 2018 Central Park Squirrel Census")
 ```
 
