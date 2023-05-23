@@ -1,0 +1,73 @@
+---
+title: 'Tidy Tuesday Week 21: Squirrels'
+author: "Erin Franke"
+date: "2023-05-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggmap)
+library(patchwork)
+library(osmdata)
+library(ggwordcloud)
+library(showtext)
+font_add_google("Solway")
+squirrel_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-05-23/squirrel_data.csv')
+```
+
+```{r}
+central_map <- get_stamenmap(
+    bbox = c(left = -73.982, bottom = 40.764, right = -73.949, top = 40.801), 
+    maptype = "terrain", zoom = 15)
+
+map <- ggmap(central_map)+
+  geom_point(aes(x=X, y=Y, color = `Primary Fur Color`), data = squirrel_data %>% filter(!is.na(`Primary Fur Color`)), alpha = 0.5, size = 0.7)+
+  scale_color_manual(values = c("black", "brown", "grey40"))+
+  theme(axis.text = element_blank(), 
+        axis.line = element_blank(), 
+        axis.ticks = element_blank(), 
+        legend.position = "bottom", 
+        plot.margin = unit(c(0,0,0,0), 'cm'), 
+        legend.margin=margin(t=-27), 
+        legend.text = element_text(size = 7),
+        legend.spacing.x = unit(0, 'cm'))+
+  labs(x = "", y = "", color = "Fur")
+        
+
+#one big sentence
+combined <- squirrel_data %>%
+  filter(!is.na(`Other Activities`)) %>%
+  select(`Other Activities`) %>%
+  dplyr::summarise(words = paste(`Other Activities`, collapse = " "))
+
+#remove punctuation
+combined_clean <- str_replace_all(combined, "[[:punct:]]", "") 
+
+#create list of words
+words <- str_split(combined_clean, " ")
+
+words_df <- as.tibble(words[[1]]) 
+
+#create word cloud
+cloud <- words_df %>%
+  count(value) %>%
+  arrange(desc(n)) %>%
+  head(50) %>%
+  filter(str_detect(value, "ing")) %>%
+  ggplot(aes(label = value, size = n, color = n)) +
+  geom_text_wordcloud_area(rm_outside = FALSE, family = "mono") +
+  scale_size_area(max_size = 10)+
+  scale_color_viridis_c(option = "H")+
+  theme(axis.line = element_blank())
+```
+
+```{r}
+theme_border <- theme(plot.background = element_rect(fill = NA, colour = 'black', linewidth = 1))
+map + cloud + plot_annotation(theme = theme_border, title = "Squirrels in Central Park: Where are they and how are they described?", subtitle = "Verbs from extra information provided for 437 sightings. All data collected in Oct 2018.", caption= "Erin Franke @efranke7282 \n Data from 2018 Central Park Squirrel Census")
+```
+
