@@ -1,0 +1,132 @@
+---
+title: 'Tidy Tuesday: Old People'
+author: "Erin Franke"
+date: "2023-05-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(survival)
+library(survminer)
+library(ggmap)
+library(ggrepel)
+library(NatParksPalettes)
+library(patchwork)
+library(showtext)
+font_add_google("Cutive Mono")
+showtext_auto()
+centenarians <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-05-30/centenarians.csv')
+```
+
+```{r}
+centenarians <- centenarians %>%
+  mutate(status = case_when(still_alive == "alive" ~ 0, 
+                            TRUE ~ 1))
+
+fit <- survfit(Surv(age, status) ~ gender, data = centenarians)
+ggsurvplot(fit, data = centenarians, palette = c("coral2", "cadetblue3"), xlim = c(110, 123),conf.int = TRUE, xlab = "Years alive", break.time.by = 2, ggtheme = theme_light(base_size=9, base_family = "mono"))
+
+plot1 <- centenarians %>%
+  group_by(gender) %>%
+  mutate(rank = rank(age, ties.method = "first"),
+         rank = (100-rank)/100) %>%
+  mutate(gender2 = case_when(still_alive == "alive" ~ "alive", 
+                            TRUE ~ gender)) %>%
+  ggplot(aes(x=age, y=rank))+
+  geom_line(aes(color = gender))+
+  geom_point(size = 0.9, aes(color = gender2))+
+  scale_color_manual(values = c("goldenrod1", "coral2", "cadetblue3"))+
+  labs(x="Years alive", y= "Proportion remaining", title = "Survival patterns by gender for historically oldest 100 males and 100 females")+
+  theme(plot.background = element_rect(fill ="ivory1"), 
+        panel.background = element_rect(fill ="ivory1"),
+        legend.position = "none", 
+        axis.text = element_text(family = "Cutive Mono", size = 10), 
+        axis.title = element_text(family= "Cutive Mono", size = 12),
+        plot.title = element_text(family= "Cutive Mono", size = 15))+
+  annotate(geom = "text", x= 122, y=.04, label = "Female", color = "coral2", family = "Cutive Mono", size = 3.5)+
+  annotate(geom = "text", x= 116.5, y=.02, label = "Male", color = "cadetblue3", family = "Cutive Mono", size = 3.5)+
+   annotate(geom = "text", x= 116.4, y=.7, label = "Yellow points \nindicate person \nis living", family = "Cutive Mono", size = 3.5)+
+  annotate(geom = "segment", x = 114.93, xend = 115.5, y = 0.69, yend = 0.71, size = 0.5)
+```
+
+```{r}
+country_counts <- centenarians %>%
+  mutate(place_of_death_or_residence = case_when(str_detect(place_of_death_or_residence, "France") ~ "France", 
+                                                              TRUE ~ place_of_death_or_residence)) %>%
+  group_by(place_of_death_or_residence) %>%
+  count() %>%
+  mutate(place_of_death_or_residence = case_when(place_of_death_or_residence == "United States" ~ "USA",
+                                                 place_of_death_or_residence == "United Kingdom" ~ "UK",
+                                                 TRUE ~ place_of_death_or_residence))
+
+world<- map_data("world")
+
+world <- world %>%
+  group_by(region) %>%
+  mutate(minlong = min(long), maxlong = max(long), minlat = min(lat), maxlat = max(lat),
+         rangelong = abs(maxlong - minlong), rangelat = abs(maxlat-minlat), 
+         centlong = minlong + rangelong/2, centlat = minlat + rangelat/2) %>%
+  select(long:region, centlong, centlat) %>%
+  left_join(country_counts, by = c("region" = "place_of_death_or_residence")) %>%
+  mutate(n = replace_na(n, 0), 
+         category = case_when(n>0 & n<=5 ~ "1-5", 
+                              n>5 & n<= 10 ~ "6-10", 
+                              n >10 & n<=15 ~ "11-15", 
+                              n>15 ~ "15+", 
+                              TRUE ~ "0"),
+         category = factor(category, levels = c("0", "1-5", "6-10", "11-15", "15+")))
+
+# make sure join went okay (now good) 
+country_counts %>%
+  anti_join((world %>%
+  filter(n>0) %>%
+  distinct(region)), by = c("place_of_death_or_residence" = "region"))
+
+country_counts <- country_counts %>%
+  left_join(world %>% distinct(region, centlong, centlat), by = c("place_of_death_or_residence" = "region")) %>%
+  rename("region" = "place_of_death_or_residence") %>%
+  mutate(centlong = case_when(region == "USA" ~ -110, 
+                              TRUE ~ centlong),
+         centlat = case_when(region == "USA" ~ 40, 
+                             TRUE ~ centlat))
+ 
+plot2 <- ggplot(world, aes(map_id = region)) +
+    geom_map(map = world, aes(fill = category), color = "black", linewidth = 0.2) +
+    expand_limits(x = world$long, y = world$lat)+
+    geom_text_repel(data = (country_counts %>% filter(n>10)), aes(label = paste0(region, "\n", n, "/200"), x = centlong, y = centlat), nudge_x = c(-30, 25, -30), nudge_y = c(0, 3, -5), alpha = 0.75, lineheight = 0.9, size = 3, segment.size = 0.4, min.segment.length = 0, family = "Cutive Mono")+
+  theme_map()+
+  coord_fixed(ratio=1.1)+
+  scale_fill_natparks_d(name = "Acadia", direction = -1)+
+  labs(fill = "Centenarians", title = "Where do these 200 centenarians reside?")+
+  theme(panel.background = element_rect(fill = 'lightcyan2'), 
+        legend.background = element_blank(),
+        legend.key.size = unit(0.3, 'cm'), 
+        legend.position = c(0,0.1), 
+        legend.title = element_text(family = "Cutive Mono"), 
+        legend.text = element_text(family = "Cutive Mono"), 
+        plot.title = element_text(family = "Cutive Mono", size = 15))
+```
+
+```{r}
+(plot1 + plot2) +
+  plot_annotation(
+    title = "Centenarians around the world",
+    caption = "Erin Franke @efranke7282 | Data from frankethull & Wikipedia",
+    theme = theme(
+      plot.title = element_markdown(family = "Cutive Mono", face = "bold",
+                                    size = 25, hjust = 0.5),
+      plot.background = element_rect(fill = "ivory1", color = NA),
+      panel.background = element_rect(fill = "ivory1", color = NA),
+      plot.caption = element_markdown(hjust = 0.5, size = 15,
+                                      family = 'Cutive Mono')))
+```
+
+```{r}
+ggsave("centenarians.png", height=12, width=20, bg = "#1d1616")
+```
+
