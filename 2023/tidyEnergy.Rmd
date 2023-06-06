@@ -1,0 +1,71 @@
+---
+title: "Tidy Tuesday Energy"
+author: "Erin Franke"
+date: "2023-06-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+owid_energy <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-06-06/owid-energy.csv')
+library(tidyverse)
+library(showtext)
+library(countrycode)
+library(ggimage)
+font_add_google("Comic Neue", "hooray")
+```
+
+Find most populated countries
+
+```{r}
+owid_energy %>%
+  group_by(country) %>%
+  mutate(max_population = max(population)) %>%
+  distinct(country, max_population) %>%
+  arrange(desc(max_population)) %>%
+  head(30)
+```
+
+Sources of energy: oil, gas, coal, hydro, other_renewables, solar, wind (renewables)
+
+```{r}
+energy2021 <- owid_energy %>%
+  filter(country %in% c("China", "India", "United States", "Indonesia", "Brazil", "Pakistan", "Bangladesh", "Russia", "Japan", "Mexico"), year == 2021) %>%
+  #select(country, matches("share_energy"))
+  select(country, oil_share_energy, gas_share_energy, coal_share_energy, nuclear_share_energy, renewables_share_energy) %>%
+  mutate_all(~replace_na(.,0)) %>%
+  mutate(sum = oil_share_energy + gas_share_energy + renewables_share_energy + coal_share_energy + nuclear_share_energy,
+          country = fct_reorder(country, coal_share_energy)) %>%
+  pivot_longer(cols = oil_share_energy:renewables_share_energy, names_to = "type", values_to = "share") %>%
+  mutate(type = str_remove(type, "_share_energy"), 
+         type = str_to_title(type), 
+         type = fct_relevel(type, levels = c("Coal", "Gas", "Oil", "Nuclear", "Renewables")),
+         share = round(share, 1))
+energy2021$iso2 <- countrycode(energy2021$country, "country.name", "iso2c")
+```
+
+```{r}
+energy2021 %>%
+  ggplot(aes(x=type, y=country))+
+  geom_point(aes(size = share, colour = type),
+             show.legend = FALSE)+
+  geom_flag(x = 0.5, aes(image = iso2))+
+  geom_text(aes(label = share),
+            family = "hooray",
+            size = 3)+
+  scale_size_continuous(range = c(0, 12))+
+  scale_color_manual(values = c("seashell4", "lightgray", "lightgoldenrod3", "wheat", "darkolivegreen3"))+
+  labs(title = "Percent share of primary energy consumption by source in 2021 for ten most populated countries", caption = "*Nigeria did not have energy share data reported \nErin Franke | Source: Our World in Data's Energy Data Explorer")+
+  theme_fivethirtyeight()+
+  theme(axis.ticks = element_blank(), 
+        axis.line = element_blank(),
+        plot.background = element_rect(fill = "honeydew"), 
+        panel.background = element_rect(fill = "honeydew"), 
+        axis.text = element_text(family = "hooray", size = 10), 
+        plot.title.position = "plot", 
+        plot.title = element_text(size = 10.5),
+        plot.caption = element_text(size=8, family = "hooray"))
+```
