@@ -1,0 +1,67 @@
+---
+title: "Tidy Tuesday SAFI"
+author: "Erin Franke"
+date: "2023-06-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+safi_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-06-13/safi_data.csv')
+library(tidyverse)
+library(showtext)
+font_add_google("Coming Soon")
+```
+
+Understand how many interviews per village
+
+```{r}
+safi_data %>%
+  count(village)
+```
+
+Create plot
+
+```{r}
+safi_data <- safi_data %>%
+  mutate(Jan = str_detect(months_lack_food, "Jan"), 
+         Feb = str_detect(months_lack_food, "Feb"), 
+         March = str_detect(months_lack_food, "Mar"),
+         April = str_detect(months_lack_food, "Apr"),
+         May = str_detect(months_lack_food, "May"),
+         June = str_detect(months_lack_food, "Jun"),
+         July = str_detect(months_lack_food, "Jul"),
+         Aug = str_detect(months_lack_food, "Aug"),
+         Sep = str_detect(months_lack_food, "Sep"),
+         Oct = str_detect(months_lack_food, "Oct"),
+         Nov = str_detect(months_lack_food, "Nov"),
+         Dec = str_detect(months_lack_food, "Dec")) 
+
+perc_lack_by_month <- safi_data %>%
+  summarize(across(Jan:Dec, mean)) %>%
+  pivot_longer(cols = Jan:Dec, names_to = "month", values_to = "overall_mean")
+
+safi_data %>%
+  group_by(village) %>%
+  summarize(across(Jan:Dec, mean)) %>%
+  pivot_longer(cols = Jan:Dec, names_to = "month", values_to = "perc_lack") %>%
+  left_join(perc_lack_by_month, by = "month") %>%
+  mutate(month = factor(month, levels = c("Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sep", "Oct", "Nov", "Dec"))) %>%
+  ggplot(aes(x=month, y = perc_lack, fill = village))+
+  geom_col(position = "dodge")+
+  geom_line(aes(x=as.numeric(month), y=overall_mean), color = "gray90")+
+    theme(plot.background = element_rect(fill = "lightblue3"), 
+        panel.background = element_rect(fill = "lightblue3"), 
+        plot.title = element_markdown(size = 11),
+        plot.subtitle = element_text(size = 9),
+        plot.caption = element_text(color = "black"),
+        legend.position = "none")+
+    labs(y = "Percent lacking food", x="", title = "Understanding monthly household food insecurity patterns in villages <span style='color:coral3'>Chirodzo</span>, <span style='color:khaki2'>God</span>, and <span style='color:darkgreen'>Ruaca</span>", subtitle = "Data collected through interviews from Nov 2016 to June 2017 with roughly 40 interviews per village. \nTo 'lack food': situation(s) where there was not enough food to feed the household.", caption = "Erin Franke | Data from subset of  SAFI (Studying African Farmer-Led Irrigation) survey")+
+  scale_fill_manual(values = c("coral3", "khaki2", "darkgreen"))+
+  scale_y_continuous(labels = scales::percent)+
+  annotate(family = "Coming Soon", x= 12, y=0.42, geom= "text", label = "Overall \nmean", size = 3, color = "gray90")
+```
+
