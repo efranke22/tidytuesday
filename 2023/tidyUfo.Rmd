@@ -1,0 +1,76 @@
+---
+title: "Tidy Tuesday UFO"
+author: "Erin Franke"
+date: "2023-06-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggmap)
+library(usdata)
+library(showtext)
+font_add_google("Orbitron")
+
+ufo_sightings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-06-20/ufo_sightings.csv')
+places <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-06-20/places.csv')
+```
+
+Goal: create map of UFO sighting/100 people since 2000 for cities in the united states with size bubble
+
+```{r} 
+states_map <- map_data("state")
+
+sightings_by_city <- ufo_sightings %>%
+  filter(reported_date_time >= as.Date("2000-01-01"), country_code == "US") %>%
+  mutate(city = str_to_lower(city), #remove inconsistent capitalization
+         city = stringi::stri_trans_general(city, "Latin-ASCII")) %>% #get rid of accents recorded on some sightings but not others
+  count(city, state, sort = TRUE) %>%
+  left_join(places %>% select(city, state, latitude, longitude, population) %>% mutate(city = str_to_lower(city), city = stringi::stri_trans_general(city, "Latin-ASCII")) %>% distinct_all(),
+            by = c("city", "state")) %>%
+  filter(n>=23, state != "AK", state != "HI") %>%
+  rename("region" = "state") %>%
+  mutate(sightings_per_1000 = (n/population)*1000,
+         region = str_to_lower(abbr2state(region)))
+
+#stupid thing I had to do to get north dakota line to show up (adding a fake north dakota point and making it black) because there are no cities in north dakota with at least 23 sightings. Tried to find a better way to do this but couldn't?
+nd <- data.frame(city = "bismarck", region = "north dakota", n=1, latitude = 46.80833, longitude = -100.78374, population = 71167, sightings_per_1000 = 0.1)
+sightings_by_city <- rbind(sightings_by_city, nd)
+
+sightings_by_city %>% 
+  ggplot() +
+  geom_map(map = states_map,
+           aes(map_id = region), color = "white", fill = NA, linewidth = 0.2)+
+  geom_point(data = sightings_by_city %>% filter(sightings_per_1000 >15, region != "north dakota"), aes(x = longitude, y = latitude),
+             alpha = 1, size = 4, color = "green1")+
+  geom_point(data = sightings_by_city %>% filter(sightings_per_1000 <= 15, region != "north dakota"), aes(x = longitude, y = latitude, size = sightings_per_1000, color = sightings_per_1000), alpha = 0.6) +
+  geom_point(data = sightings_by_city %>% filter(region == "north dakota"), aes(x = longitude, y = latitude), color = "black")+
+  geom_text_repel(data = sightings_by_city %>% filter(sightings_per_1000>15), aes(label = paste0(str_to_title(city), "\nSightings: ", n, "\nPopulation: ", population, "\nSightings per 1000: ", round(sightings_per_1000, 1)), x = longitude, y = latitude), nudge_x = c(-10, 5, 10), nudge_y = c(0, -1, -2), alpha = 0.75, size=2, color = "green1", family = "Orbitron")+
+  expand_limits(x = states_map$long, y = states_map$lat)+
+  scale_size_continuous(range = c(0.05, 3))+
+  scale_color_gradient(low = "yellow", high = "green1")+
+  labs(x= "", y="", color = "Total sightings \nper 1000 \nresidents", size = "", title = "What cities report UFOs at abnormal rates?", subtitle = "UFO sightings per 1000 residents since 2000 for cities averaging at least one report annually", caption = "Erin Franke | Data from National UFO Reporting Center")+
+  theme(panel.background = element_rect(fill = 'black'), 
+        plot.background = element_rect(fill = "black"),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        axis.text = element_blank(),
+        plot.title = element_text(color = "white", size = 10, family = "Orbitron"),
+        plot.subtitle = element_text(color = "gray70", size = 9, family = "Orbitron"),
+        legend.background = element_blank(),
+        legend.key.size = unit(0.3, 'cm'), 
+        legend.position = c(0.1,0.15),
+        legend.text = element_text(color = "white"), 
+        legend.title = element_text(color = "white", size = 8, family = "Orbitron"))+
+  guides(size = "none")
+```
+
+sightings_discrete = case_when(sightings_per_1000 < 5 ~ "<5", 
+                                        sightings_per_1000 >=5 & sightings_per_1000 <10 ~ "5-10",
+                                        sightings_per_1000 >=10 & sightings_per_1000 <20 ~ "10-20",
+                                        TRUE ~ "20+"), 
+         sightings_discrete = factor(sightings_discrete, levels = c("5-10", "10-20", "20+")))
