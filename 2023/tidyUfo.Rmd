@@ -20,8 +20,6 @@ ufo_sightings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascie
 places <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-06-20/places.csv')
 ```
 
-Goal: create map of UFO sighting/100 people since 2000 for cities in the united states with size bubble
-
 ```{r} 
 states_map <- map_data("state")
 
@@ -36,11 +34,18 @@ sightings_by_city <- ufo_sightings %>%
   rename("region" = "state") %>%
   mutate(sightings_per_1000 = (n/population)*1000,
          region = str_to_lower(abbr2state(region)))
+```
 
-#stupid thing I had to do to get north dakota line to show up (adding a fake north dakota point and making it black) because there are no cities in north dakota with at least 23 sightings. Tried to find a better way to do this but couldn't?
+Stupid thing I had to do to get north dakota line to show up (adding a fake north dakota point and making it black) because there are no cities in north dakota with at least 23 sightings. Tried to find a better way to do this but couldn't?
+
+```{r}
 nd <- data.frame(city = "bismarck", region = "north dakota", n=1, latitude = 46.80833, longitude = -100.78374, population = 71167, sightings_per_1000 = 0.1)
 sightings_by_city <- rbind(sightings_by_city, nd)
+```
 
+Finalize map
+
+```{r}
 sightings_by_city %>% 
   ggplot() +
   geom_map(map = states_map,
@@ -68,9 +73,3 @@ sightings_by_city %>%
         legend.title = element_text(color = "white", size = 8, family = "Orbitron"))+
   guides(size = "none")
 ```
-
-sightings_discrete = case_when(sightings_per_1000 < 5 ~ "<5", 
-                                        sightings_per_1000 >=5 & sightings_per_1000 <10 ~ "5-10",
-                                        sightings_per_1000 >=10 & sightings_per_1000 <20 ~ "10-20",
-                                        TRUE ~ "20+"), 
-         sightings_discrete = factor(sightings_discrete, levels = c("5-10", "10-20", "20+")))
