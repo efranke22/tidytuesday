@@ -1,0 +1,53 @@
+---
+title: "Tidy Tuesday Global Temperatures"
+author: "Erin Franke"
+date: "2023-07-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(showtext)
+library(ggpubr)
+```
+ 
+```{r}
+global_temps <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-07-11/global_temps.csv')
+nh_temps <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-07-11/nh_temps.csv')
+sh_temps <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-07-11/sh_temps.csv')
+zonann_temps <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-07-11/zonann_temps.csv')
+```
+ 
+```{r}
+nh_temps %>%
+  mutate(Hemisphere = "Northern Hemisphere") %>%
+  rbind(sh_temps %>% mutate(Hemisphere = "Southern Hemisphere")) %>%
+  select(Year, Hemisphere, DJF, MAM, JJA, SON) %>%
+  pivot_longer(cols = DJF:SON, names_to = "season", values_to = "temp") %>%
+  mutate(Year = case_when(season == "DJF" ~ Year,
+                          season == "MAM" ~ Year + 0.25,
+                          season == "JJA" ~ Year + 0.5,
+                          TRUE ~ Year + 0.75),
+         season = case_when(season == "DJF" ~ "Dec-Feb",
+                            season == "MAM" ~ "Mar-May",
+                            season == "JJA" ~ "Jun-Aug",
+                            TRUE ~ "Sep-Nov"),
+         season = factor(season, levels = c("Dec-Feb", "Mar-May", "Jun-Aug", "Sep-Nov"))) %>%
+  ggplot(aes(x=Year, y=temp))+
+  geom_point(aes(color = season))+
+  geom_hline(yintercept = 0)+
+  geom_segment(aes(x=Year, y=temp, xend = Year, yend= 0), color = "gray70", alpha = 0.2)+
+  geom_bracket(
+    aes(xmin = xmin, xmax = xmax, label = label),
+    data = data.frame(xmin = c(1951), xmax = c(1980), label = c("Average")), y.position = c(1.5), label.size = 3, tip.length = 1, color = "gray")+
+  facet_wrap(~Hemisphere, nrow=1)+
+  labs(title = "Understanding Global Surface Temperature Change Overtime", subtitle = "This plot displays an estimate of global surface temperature deviations (°C) by meteorological season. The deviations\nare measured from the 1951-1980 average with land-surface, air, and sea-surface water temperature anomalies.", color = "Season", caption = "Erin Franke | Data from GISTEMP v4", y = "Temperature deviation (°C)")+
+  scale_color_manual(values = c("slategray2", "darkolivegreen3", "khaki1", "tan2"))+
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 10, face = "bold"), 
+        plot.subtitle = element_text(size=9))
+```
