@@ -1,0 +1,64 @@
+---
+title: 'Tidy Tuesday: Scurvy'
+author: "Erin Franke"
+date: "2023-07-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggimage)
+library(png)
+library(showtext)
+library(cowplot)
+font_add_google("Shadows Into Light")
+font_add_google("Imprima")
+font_add_google("Gudea")
+showtext_auto()
+scurvy <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-07-25/scurvy.csv')
+```
+
+```{r}
+#create text for legend 
+labels <- data.frame(x = c(1.4, 2.1, 2.95, 3.85), y=c(rep(13.5,4)), label = c("None", "Mild", "Moderate", "Severe"))
+
+scurvy %>%
+  pivot_longer(cols = c(gum_rot_d6:lassitude_d6), names_to = "Symptom", values_to = "Rating") %>%
+  mutate(Rating = str_to_title(str_sub(Rating, 3, -1)), 
+         treatment = str_to_title(str_replace_all(treatment, "_", " ")),
+         Symptom = case_when(Symptom == "gum_rot_d6" ~ "Gum rot", 
+                             Symptom == "skin_sores_d6" ~ "Skin sores", 
+                             Symptom == "weakness_of_the_knees_d6" ~ "Weakness of knees", 
+                             Symptom == "lassitude_d6" ~ "Lassitude"), 
+         img = case_when(Rating == "Severe" ~ "red.png", 
+                         Rating == "Moderate" ~ "orange.png", 
+                         Rating == "Mild" ~ "yellow.png", 
+                         Rating == "None" ~ "green.png"),
+         treat_label = case_when(study_id %% 2 == 0 ~ treatment, 
+                                 TRUE ~ ""),
+         study_id = factor(study_id, levels = c("9", "10", "1", "2", "3", "4", "5", "6", "7", "8", "11", "12"))) %>%
+  ggplot(aes(y=study_id, x=Symptom))+
+  geom_image(aes(image=img), size=.05, by="width", asp = 1.18)+
+  geom_text(aes(x = 4.8, y = study_id, label = treat_label), nudge_y = -0.5, size =3.5, family = "Shadows Into Light", color = "gray40")+
+  expand_limits(x=5.5, y=14)+
+  draw_image("green.png",  x = 0.6, y = 13, scale = 0.5) +
+  draw_image("yellow.png",  x = 1.35, y = 13, scale = 0.5) +
+  draw_image("orange.png",  x = 2, y = 13, scale = 0.5) +
+  draw_image("red.png",  x = 3, y = 13, scale = 0.5) +
+  geom_text(data=labels, aes(x=x, y=y, label=label), family = "Imprima", size = 3)+
+  labs(x = "", title = "Treating Scurvy in 1787", subtitle = "James Lind, a surgeon on board the HMS Salisbury in 1787, tested 6 different\ntreatments on 12 scurvy patients in similar condition and reported symptoms after 6 days.", caption = "Erin Franke | Data from medicaldata R package")+
+  geom_hline(yintercept = c(10.5, 8.5, 6.5, 4.5, 2.5), color = "gray90", linewidth = 0.5, linetype = "dashed")+
+  theme(aspect.ratio = 1/1.18, 
+        axis.line.y = element_blank(), 
+        axis.text.x = element_text(family = "Gudea"),
+        axis.ticks = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(), 
+        plot.title = element_text(hjust = 0.5, face = "bold"), 
+        plot.subtitle = element_text(hjust = 0.5, size =9))
+```
+
